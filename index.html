@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsão Casa - Simulador de Financiamento</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏠 Previsão Casa</h1>
+            <p>Simulador de financiamento para construção</p>
+        </header>
+
+        <main>
+            <!-- Abas -->
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="obra">🏠 Previsão Obra</button>
+                <button class="tab-btn" data-tab="pessoal">💳 Orçamento Pessoal</button>
+            </div>
+
+            <!-- Aba: Previsão Obra -->
+            <div id="tab-obra" class="tab-content active">
+            <!-- Formulário de Entrada -->
+            <section class="card" id="form-section">
+
+                <h2>📋 Dados do Financiamento</h2>
+                <div class="form-group">
+                    <label for="valorParcela">Valor da parcela do financiamento (R$)</label>
+                    <input type="number" id="valorParcela" step="0.01" min="0" placeholder="Ex: 1500.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="mesesObra">Meses até a obra ficar pronta</label>
+                    <input type="number" id="mesesObra" min="1" max="120" placeholder="Ex: 36" required>
+                </div>
+                <div class="form-group">
+                    <label for="valorMuroPortao">Valor gasto com muro e portão (R$)</label>
+                    <input type="number" id="valorMuroPortao" step="0.01" min="0" placeholder="Ex: 5000.00" required>
+                </div>
+            </section>
+
+            <!-- Seleção de Cenário -->
+            <section class="card" id="cenario-section">
+                <h2>🎯 Escolha o Cenário</h2>
+                <p class="hint">Clique em um cenário para ver os resultados:</p>
+                <div class="cenario-buttons">
+                    <button class="btn-cenario" data-cenario="1" style="--btn-color: #e74c3c;">
+                        <span class="btn-icon">🔴</span>
+                        <span class="btn-text">Atraso no<br>Começo</span>
+                    </button>
+                    <button class="btn-cenario" data-cenario="2" style="--btn-color: #f39c12;">
+                        <span class="btn-icon">🟡</span>
+                        <span class="btn-text">Atraso no<br>Meio</span>
+                    </button>
+                    <button class="btn-cenario" data-cenario="3" style="--btn-color: #e67e22;">
+                        <span class="btn-icon">🟠</span>
+                        <span class="btn-text">Atraso no<br>Final</span>
+                    </button>
+                    <button class="btn-cenario" data-cenario="4" style="--btn-color: #2ecc71;">
+                        <span class="btn-icon">🟢</span>
+                        <span class="btn-text">Sem<br>Atrasos</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Resultados -->
+            <section class="card" id="result-section" style="display: none;">
+                <h2 id="result-title">📊 Resultados</h2>
+
+                <!-- Tabela Mensal -->
+                <div class="table-container">
+                    <table id="result-table">
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th>Taxa (%)</th>
+                                <th>Valor Pago (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Resumo -->
+                <div class="resumo-grid">
+                    <div class="resumo-card total">
+                        <span class="resumo-label">Total Gasto</span>
+                        <span class="resumo-value" id="totalGasto">R$ 0,00</span>
+                    </div>
+                    <div class="resumo-card muro">
+                        <span class="resumo-label">Muro + Portão</span>
+                        <span class="resumo-value" id="valorMuro">R$ 0,00</span>
+                    </div>
+                    <div class="resumo-card taxa">
+                        <span class="resumo-label">Taxa de Obra</span>
+                        <span class="resumo-value" id="taxaObra">R$ 0,00</span>
+                    </div>
+                    <div class="resumo-card guardar">
+                        <span class="resumo-label">Guardar p/ cada um/mês</span>
+                        <span class="resumo-value" id="guardarMes">R$ 0,00</span>
+                    </div>
+                </div>
+            </section>
+
+            </div><!-- Fim tab-obra -->
+
+            <!-- Aba: Orçamento Pessoal -->
+            <div id="tab-pessoal" class="tab-content">
+            <!-- Calculadora Pessoal -->
+            <section class="card" id="pessoal-section">
+
+                <h2>💳 Calculadora Pessoal</h2>
+                <p class="hint">Adicione sua renda e gastos mensais para ver quanto sobra no final.</p>
+
+                <div class="form-group">
+                    <label for="rendaMensal">Renda mensal (R$)</label>
+                    <input type="number" id="rendaMensal" step="0.01" min="0" placeholder="Ex: 3000.00">
+                </div>
+
+                <div class="gastos-header">
+                    <span class="gastos-title">Gastos Mensais</span>
+                    <button id="btn-add-gasto" class="btn-add">+ Adicionar gasto</button>
+                </div>
+
+                <div id="gastos-list">
+                    <!-- Gastos serão inseridos aqui via JS -->
+                </div>
+
+                <div class="pessoal-resumo">
+                    <div class="resumo-card total-gastos">
+                        <span class="resumo-label">Total de Gastos</span>
+                        <span class="resumo-value" id="totalGastos">R$ 0,00</span>
+                    </div>
+                    <div class="resumo-card saldo-final" id="saldo-card">
+                        <span class="resumo-label">Saldo Restante</span>
+                        <span class="resumo-value" id="saldoRestante">R$ 0,00</span>
+                    </div>
+                </div>
+            </section>
+            </div><!-- Fim tab-pessoal -->
+        </main>
+
+
+        <footer>
+            <p>Previsão Casa &copy; 2026</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
