@@ -1,35 +1,63 @@
-# 🏠 Previsão Casa
+# 🏠 Calculadora de Previsão de Preço de Casa
 
-Simulador de financiamento para construção de casas. Calcula 4 cenários diferentes de atraso na obra, mostrando mês a mês as taxas e valores pagos.
+Simulador de financiamento para construção de casas. Calcula **4 cenários diferentes** de atraso na obra, mostrando mês a mês as taxas e valores pagos.
 
-## Funcionalidades
+## 🔗 Acesse o projeto
 
-- **3 inputs**: Valor da parcela, meses da obra, valor do muro/portão
-- **4 cenários**: Atraso no começo, meio, final ou sem atraso
-- Resultados com tabela mensal detalhada e resumo financeiro
-- Design responsivo (funciona em desktop e mobile)
+👉 [Calculadora de Previsão de Preço de Casa](https://joaomarcelo-java.github.io/CalculadoraCasa/)
 
-## Como usar
+---
 
-1. Preencha os dados do financiamento
-2. Clique em um dos cenários
-3. Veja os resultados instantaneamente
+## ✨ Funcionalidades
 
-## Hospedagem no GitHub Pages
+- **3 inputs principais**:
+  - 💰 Valor da parcela mensal
+  - 📅 Quantidade de meses da obra
+  - 🚧 Valor do muro/portão
+- **4 cenários de cálculo**:
+  - ✅ Sem atraso
+  - ⏳ Atraso no começo da obra
+  - ⏳ Atraso no meio da obra
+  - ⏳ Atraso no final da obra
+- 📊 Resultados com tabela mensal detalhada
+- 📈 Resumo financeiro completo
+- 📱 Design responsivo (funciona em desktop e mobile)
 
-1. Crie um repositório no GitHub
-2. Envie os arquivos para o repositório:
-   - `index.html`
-   - `style.css`
-   - `script.js`
-   - `README.md`
-3. No GitHub, vá em **Settings > Pages**
-4. Em "Branch", selecione `main` (ou `master`) e a pasta `/` (root)
-5. Clique em **Save**
-6. Pronto! Seu site estará disponível em `https://seuusuario.github.io/nome-do-repositorio`
+## 🛠️ Tecnologias
 
-## Tecnologias
+- **HTML5** - Estrutura da página
+- **CSS3** - Estilização com Flexbox, Grid e design responsivo
+- **JavaScript (Vanilla JS)** - Lógica de cálculo e interatividade (sem dependências externas)
 
-- HTML5
-- CSS3 (Flexbox, Grid, design responsivo)
-- JavaScript (Vanilla JS - sem dependências)
+## 🚀 Como usar
+
+1. Acesse o [link do projeto](https://joaomarcelo-java.github.io/CalculadoraCasa/)
+2. Preencha os dados do financiamento
+3. Clique em um dos cenários desejados
+4. Veja os resultados instantaneamente
+
+Ou clone o repositório e abra o arquivo `index.html` no navegador:
+
+```bash
+git clone https://github.com/joaomarcelo-java/CalculadoraCasa.git
+cd CalculadoraCasa
+start index.html
+```
+
+## 📂 Estrutura do projeto
+
+```
+CalculadoraCasa/
+├── index.html      # Página principal
+├── style.css       # Estilos CSS
+├── script.js       # Lógica JavaScript
+└── README.md       # Documentação
+```
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT.
+
+---
+
+⌨️ Desenvolvido por [João Marcelo](https://github.com/joaomarcelo-java)
