@@ -80,12 +80,10 @@ O `pctAcumulado` de cada mês é obtido pela **Curva S** do PDF (24 meses), inte
 
 ```
 CalculadoraCasa/
-├── index.html                # Página principal
-├── style.css                 # Estilos CSS
-├── script.js                 # Lógica JavaScript
-├── Cronograma_Obra_*.pdf     # Cronograma original (referência)
-├── prompt-correcao-app.md    # Documento de especificação
-└── README.md                 # Documentação
+├── index.html      # Página principal
+├── style.css       # Estilos CSS
+├── script.js       # Lógica JavaScript
+└── README.md       # Documentação
 ```
 
 ## 📄 Licença
