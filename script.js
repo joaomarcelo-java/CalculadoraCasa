@@ -1,6 +1,7 @@
 /**
  * Previsão Casa - Lógica de cálculos
- * Convertida do C# (Program.cs + Funcoes.cs)
+ * Calcula juros de obra baseados na Curva S real extraída do Cronograma de Obra (PDF 24 meses)
+ * Método: Interpolação com Curva Base + Distorção Temporal
  */
 
 // ===== FORMATAÇÃO =====
@@ -8,168 +9,168 @@ function formatMoney(value) {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// ===== FUNÇÕES DE CÁLCULO (convertidas do C#) =====
+// ===== CURVA BASE (dados reais extraídos do PDF - 24 meses) =====
+// Percentuais ACUMULADOS de evolução da obra mês a mês
+const curvaBase = [
+    0,       // mês 0  - 0%
+    0.31,    // mês 1  - 0.31%
+    1.18,    // mês 2  - 1.18%
+    2.79,    // mês 3  - 2.79%
+    5.35,    // mês 4  - 5.35%
+    8.61,    // mês 5  - 8.61%
+    14.31,   // mês 6  - 14.31%
+    21.36,   // mês 7  - 21.36%
+    28.34,   // mês 8  - 28.34%
+    35.48,   // mês 9  - 35.48%
+    44.57,   // mês 10 - 44.57%
+    54.42,   // mês 11 - 54.42%
+    65.08,   // mês 12 - 65.08%
+    74.58,   // mês 13 - 74.58%
+    79.94,   // mês 14 - 79.94%
+    84.04,   // mês 15 - 84.04%
+    86.25,   // mês 16 - 86.25%
+    88.37,   // mês 17 - 88.37%
+    90.25,   // mês 18 - 90.25%
+    91.99,   // mês 19 - 91.99%
+    93.00,   // mês 20 - 93.00%
+    93.95,   // mês 21 - 93.95%
+    94.80,   // mês 22 - 94.80%
+    95.00,   // mês 23 - 95.00%
+    100.00   // mês 24 - 100.00%
+];
 
+const TOTAL_MESES_BASE = 24;
+
+// ===== INTERPOLAÇÃO LINEAR NA CURVA BASE =====
+function interpolarCurva(mesFracionario) {
+    if (mesFracionario <= 0) return 0;
+    if (mesFracionario >= TOTAL_MESES_BASE) return 100;
+
+    const mesInteiro = Math.floor(mesFracionario);
+    const fracao = mesFracionario - mesInteiro;
+
+    const valorAnterior = curvaBase[mesInteiro];
+    const valorPosterior = curvaBase[mesInteiro + 1];
+
+    return valorAnterior + (valorPosterior - valorAnterior) * fracao;
+}
+
+// ===== FUNÇÕES DE DISTORÇÃO TEMPORAL =====
+function distorcaoPadrao(p) {
+    return p; // identidade - sem distorção
+}
+
+function distorcaoInicial(p) {
+    const a = 0.85;
+    return Math.max(0, p - a * p * Math.pow(1 - p, 3));
+}
+
+function distorcaoMeio(p) {
+    const a = 0.12;
+    return Math.max(0, p - a * 16 * p * p * (1 - p) * (1 - p));
+}
+
+function distorcaoFinal(p) {
+    const a = 1.0;
+    return Math.max(0, p - a * p * p * p * (1 - p));
+}
+
+const funcoesDistorcao = {
+    1: distorcaoPadrao,    // Previsto
+    2: distorcaoInicial,   // Atraso no Começo
+    3: distorcaoMeio,       // Atraso no Meio
+    4: distorcaoFinal       // Atraso no Final
+};
+
+const titulosCenarios = {
+    1: "📊 Previsto (Curva PDF)",
+    2: "🔴 Atraso no Começo",
+    3: "🟡 Atraso no Meio",
+    4: "🟠 Atraso no Final"
+};
+
+// ===== FUNÇÃO PRINCIPAL DE CÁLCULO =====
 /**
- * Cenário 1: Atraso no Começo
+ * Calcula os juros de obra mês a mês baseado na Curva S.
+ *
+ * Fórmula:
+ *   valorLiberado(mês)    = valorConstrucao × (pctAcumulado / 100)
+ *   juros(mês)            = valorLiberado × (taxaMensal / 100)
+ *   encargoTotal(mês)     = juros + seguroMensal + taxaAdm
  */
-function calcularAtrasoComeco(valorParcela, valorMuroPortao, mesesObraPronta) {
-    const totalPagoMensal = [];
-    const taxasCiclo = [10, 20, 30];
-    const faseLenta = Math.floor(mesesObraPronta / 3);
-    const mesesFase2 = mesesObraPronta - faseLenta;
-    let totalPago = 0;
+function calcularJurosObra(valorConstrucao, taxaJurosMensal, seguroMensal, taxaAdm, totalMeses, tipoAtraso) {
+    const distorcao = funcoesDistorcao[tipoAtraso];
 
-    for (let i = 0; i < mesesObraPronta; i++) {
-        let taxa;
-        if (i < faseLenta) {
-            taxa = taxasCiclo[i % taxasCiclo.length];
-        } else {
-            const i2 = i - faseLenta;
-            taxa = Math.min(40 + (Math.floor(i2 * 5 / Math.max(mesesFase2 - 1, 1))) * 10, 90);
-        }
+    const mensal = [];
+    let totalJuros = 0;
+    let totalEncargos = 0;
 
-        const valorTaxa = valorParcela * (taxa / 100);
-        totalPago += valorTaxa;
-        totalPagoMensal.push({ mes: i + 1, taxa, valor: valorTaxa });
+    for (let i = 1; i <= totalMeses; i++) {
+        const progressoReal = i / totalMeses;
+        const progressoEfetivo = distorcao(progressoReal);
+        const mesEquivalente = progressoEfetivo * TOTAL_MESES_BASE;
+        const pctAcumulado = interpolarCurva(mesEquivalente);
+
+        const valorLiberado = valorConstrucao * (pctAcumulado / 100);
+        const juros = valorLiberado * (taxaJurosMensal / 100);
+        const encargoTotal = juros + seguroMensal + taxaAdm;
+
+        totalJuros += juros;
+        totalEncargos += encargoTotal;
+
+        mensal.push({
+            mes: i,
+            pctAcumulado: pctAcumulado,
+            valorLiberado: valorLiberado,
+            juros: juros,
+            seguro: seguroMensal,
+            taxaAdm: taxaAdm,
+            encargoTotal: encargoTotal
+        });
     }
 
-    const totalGasto = totalPago + valorMuroPortao;
-    const necessarioGuardar = (totalGasto / mesesObraPronta) / 2;
-
     return {
-        titulo: "🔴 Cenário: Atraso no Começo",
-        mensal: totalPagoMensal,
-        totalGasto,
-        valorMuroPortao,
-        taxaObra: totalPago,
-        guardarMes: necessarioGuardar
+        titulo: titulosCenarios[tipoAtraso],
+        mensal: mensal,
+        totalEncargos: totalEncargos,
+        totalJuros: totalJuros,
+        seguroMensal: seguroMensal,
+        taxaAdm: taxaAdm
     };
 }
 
-/**
- * Cenário 2: Atraso no Meio
- */
-function calcularAtrasoMeio(valorParcela, valorMuroPortao, mesesObraPronta) {
-    const totalPagoMensal = [];
-    const fase1 = Math.floor(mesesObraPronta / 3);
-    const fase2 = Math.floor(mesesObraPronta / 3);
-    const fase3 = mesesObraPronta - fase1 - fase2;
-    let totalPago = 0;
+// ===== PREENCHER TABELA DA CURVA BASE (PDF) =====
+function preencherTabelaCurvaBase() {
+    const tbody = document.getElementById('curva-base-body');
+    if (!tbody) return;
 
-    for (let i = 0; i < mesesObraPronta; i++) {
-        let taxa;
-        if (i < fase1) {
-            taxa = Math.min(10 + (Math.floor(i * 3 / Math.max(fase1 - 1, 1))) * 10, 40);
-        } else if (i < fase1 + fase2) {
-            taxa = 50;
-        } else {
-            const i3 = i - fase1 - fase2;
-            if (i === mesesObraPronta - 1)
-                taxa = 90;
-            else
-                taxa = Math.min(60 + (Math.floor(i3 * 3 / Math.max(fase3 - 1, 1))) * 10, 90);
-        }
-
-        const valorTaxa = valorParcela * (taxa / 100);
-        totalPago += valorTaxa;
-        totalPagoMensal.push({ mes: i + 1, taxa, valor: valorTaxa });
+    const pctsPeriodo = [];
+    for (let i = 1; i <= TOTAL_MESES_BASE; i++) {
+        pctsPeriodo.push(curvaBase[i] - curvaBase[i - 1]);
     }
 
-    const totalGasto = totalPago + valorMuroPortao;
-    const necessarioGuardar = (totalGasto / mesesObraPronta) / 2;
-
-    return {
-        titulo: "🟡 Cenário: Atraso no Meio",
-        mensal: totalPagoMensal,
-        totalGasto,
-        valorMuroPortao,
-        taxaObra: totalPago,
-        guardarMes: necessarioGuardar
-    };
-}
-
-/**
- * Cenário 3: Atraso no Final
- */
-function calcularAtrasoFinal(valorParcela, valorMuroPortao, mesesObraPronta) {
-    const totalPagoMensal = [];
-    const faseRapida = Math.floor((mesesObraPronta * 2) / 3);
-    const faseLenta = mesesObraPronta - faseRapida;
-    let totalPago = 0;
-
-    for (let i = 0; i < mesesObraPronta; i++) {
-        let taxa;
-        if (i === mesesObraPronta - 1) {
-            taxa = 90;
-        } else if (i < faseRapida) {
-            taxa = Math.min(10 + (Math.floor(i * 6 / Math.max(faseRapida - 1, 1))) * 10, 70);
-        } else {
-            taxa = 80;
-        }
-
-        const valorTaxa = valorParcela * (taxa / 100);
-        totalPago += valorTaxa;
-        totalPagoMensal.push({ mes: i + 1, taxa, valor: valorTaxa });
-    }
-
-    const totalGasto = totalPago + valorMuroPortao;
-    const necessarioGuardar = (totalGasto / mesesObraPronta) / 2;
-
-    return {
-        titulo: "🟠 Cenário: Atraso no Final",
-        mensal: totalPagoMensal,
-        totalGasto,
-        valorMuroPortao,
-        taxaObra: totalPago,
-        guardarMes: necessarioGuardar
-    };
-}
-
-/**
- * Cenário 4: Sem Atraso
- */
-function calcularSemAtraso(valorParcela, valorMuroPortao, mesesObraPronta) {
-    const totalPagoMensal = [];
-    let totalPago = 0;
-
-    for (let i = 0; i < mesesObraPronta; i++) {
-        let taxa;
-        if (i === mesesObraPronta - 1)
-            taxa = 90;
-        else
-            taxa = Math.min(10 + (Math.floor(i * 8 / Math.max(mesesObraPronta - 1, 1))) * 10, 90);
-
-        const valorTaxa = valorParcela * (taxa / 100);
-        totalPago += valorTaxa;
-        totalPagoMensal.push({ mes: i + 1, taxa, valor: valorTaxa });
-    }
-
-    const totalGasto = totalPago + valorMuroPortao;
-    const necessarioGuardar = (totalGasto / mesesObraPronta) / 2;
-
-    return {
-        titulo: "🟢 Cenário: Sem Atraso",
-        mensal: totalPagoMensal,
-        totalGasto,
-        valorMuroPortao,
-        taxaObra: totalPago,
-        guardarMes: necessarioGuardar
-    };
+    tbody.innerHTML = curvaBase.slice(1).map((acumulado, i) => {
+        const mes = i + 1;
+        const pctPeriodo = pctsPeriodo[i];
+        const barraWidth = Math.max(2, pctPeriodo * 8);
+        return `
+            <tr>
+                <td><strong>Mês ${mes}</strong></td>
+                <td>${pctPeriodo.toFixed(2).replace('.', ',')}%</td>
+                <td>${acumulado.toFixed(2).replace('.', ',')}%</td>
+                <td><span class="barra-curva" style="width: ${barraWidth}px;"></span></td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // ===== CONTROLE DE UI =====
 
-// Mapeamento de cenários
-const calculadoras = {
-    1: calcularAtrasoComeco,
-    2: calcularAtrasoMeio,
-    3: calcularAtrasoFinal,
-    4: calcularSemAtraso
-};
-
 // Elementos DOM
-const valorParcelaInput = document.getElementById('valorParcela');
+const valorConstrucaoInput = document.getElementById('valorConstrucao');
+const taxaJurosMensalInput = document.getElementById('taxaJurosMensal');
+const seguroMensalInput = document.getElementById('seguroMensal');
+const taxaAdmInput = document.getElementById('taxaAdm');
 const mesesObraInput = document.getElementById('mesesObra');
 const valorMuroPortaoInput = document.getElementById('valorMuroPortao');
 const botoesCenario = document.querySelectorAll('.btn-cenario');
@@ -177,21 +178,39 @@ const resultSection = document.getElementById('result-section');
 const resultTitle = document.getElementById('result-title');
 const tableBody = document.getElementById('table-body');
 const totalGastoEl = document.getElementById('totalGasto');
+const totalJurosEl = document.getElementById('totalJuros');
 const valorMuroEl = document.getElementById('valorMuro');
-const taxaObraEl = document.getElementById('taxaObra');
 const guardarMesEl = document.getElementById('guardarMes');
 
 /**
  * Obtém os valores dos inputs validados
  */
 function obterValores() {
-    const valorParcela = parseFloat(valorParcelaInput.value);
+    const valorConstrucao = parseFloat(valorConstrucaoInput.value);
+    const taxaJurosMensal = parseFloat(taxaJurosMensalInput.value);
+    const seguroMensal = parseFloat(seguroMensalInput.value);
+    const taxaAdm = parseFloat(taxaAdmInput.value);
     const mesesObra = parseInt(mesesObraInput.value);
     const valorMuroPortao = parseFloat(valorMuroPortaoInput.value);
 
-    if (isNaN(valorParcela) || valorParcela <= 0) {
-        alert('Por favor, digite um valor válido para a parcela.');
-        valorParcelaInput.focus();
+    if (isNaN(valorConstrucao) || valorConstrucao <= 0) {
+        alert('Por favor, digite um valor válido para "Valor liberado para construção".');
+        valorConstrucaoInput.focus();
+        return null;
+    }
+    if (isNaN(taxaJurosMensal) || taxaJurosMensal < 0) {
+        alert('Por favor, digite uma taxa de juros válida.');
+        taxaJurosMensalInput.focus();
+        return null;
+    }
+    if (isNaN(seguroMensal) || seguroMensal < 0) {
+        alert('Por favor, digite um valor válido para o seguro mensal.');
+        seguroMensalInput.focus();
+        return null;
+    }
+    if (isNaN(taxaAdm) || taxaAdm < 0) {
+        alert('Por favor, digite um valor válido para taxa de administração.');
+        taxaAdmInput.focus();
         return null;
     }
     if (isNaN(mesesObra) || mesesObra < 1) {
@@ -205,34 +224,187 @@ function obterValores() {
         return null;
     }
 
-    return { valorParcela, mesesObra, valorMuroPortao };
+    return { valorConstrucao, taxaJurosMensal, seguroMensal, taxaAdm, mesesObra, valorMuroPortao };
 }
 
 /**
  * Renderiza os resultados na tela
  */
-function renderizarResultados(resultado) {
-    // Título
+function renderizarResultados(resultado, valorMuroPortao, totalMeses) {
     resultTitle.textContent = `📊 ${resultado.titulo}`;
 
     // Tabela mensal
     tableBody.innerHTML = resultado.mensal.map(item => `
         <tr>
-            <td><strong>Mês ${item.mes}</strong></td>
-            <td>${item.taxa}%</td>
-            <td>R$ ${formatMoney(item.valor)}</td>
+            <td><strong>${item.mes}</strong></td>
+            <td>${item.pctAcumulado.toFixed(2).replace('.', ',')}%</td>
+            <td>R$ ${formatMoney(item.valorLiberado)}</td>
+            <td>R$ ${formatMoney(item.juros)}</td>
+            <td>R$ ${formatMoney(item.seguro)}</td>
+            <td>R$ ${formatMoney(item.taxaAdm)}</td>
+            <td><strong>R$ ${formatMoney(item.encargoTotal)}</strong></td>
         </tr>
     `).join('');
 
     // Cards de resumo
-    totalGastoEl.textContent = `R$ ${formatMoney(resultado.totalGasto)}`;
-    valorMuroEl.textContent = `R$ ${formatMoney(resultado.valorMuroPortao)}`;
-    taxaObraEl.textContent = `R$ ${formatMoney(resultado.taxaObra)}`;
-    guardarMesEl.textContent = `R$ ${formatMoney(resultado.guardarMes)}`;
+    const totalGasto = resultado.totalEncargos + valorMuroPortao;
+    totalGastoEl.textContent = `R$ ${formatMoney(totalGasto)}`;
+    totalJurosEl.textContent = `R$ ${formatMoney(resultado.totalJuros)}`;
+    valorMuroEl.textContent = `R$ ${formatMoney(valorMuroPortao)}`;
+    guardarMesEl.textContent = `R$ ${formatMoney(totalGasto / totalMeses / 2)}`;
 
-    // Mostrar seção de resultados (com animação)
+    // Gráfico
+    desenharGrafico(resultado.mensal);
+
+    // Mostrar seção de resultados
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * ===== GRÁFICO DE EVOLUÇÃO =====
+ * Desenha no canvas duas séries: % Obra Acumulado (azul) e Encargo Total (vermelho)
+ */
+function desenharGrafico(dados) {
+    const canvas = document.getElementById('chart-canvas');
+    if (!canvas || !dados || dados.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const MARGIN = { top: 20, right: 10, bottom: 36, left: 50 };
+    const chartW = W - MARGIN.left - MARGIN.right;
+    const chartH = H - MARGIN.top - MARGIN.bottom;
+
+    // Máximo do encargo para escala
+    const maxEncargo = Math.max(...dados.map(d => d.encargoTotal));
+    const maxEncargoAprox = Math.ceil(maxEncargo / 50) * 50 || 100;
+
+    // Limpar
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#fafbfc';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grade horizontal (5 linhas)
+    ctx.strokeStyle = '#e8e8e8';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+        const y = MARGIN.top + (chartH / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(MARGIN.left, y);
+        ctx.lineTo(MARGIN.left + chartW, y);
+        ctx.stroke();
+    }
+
+    // Eixo X - rótulos dos meses
+    ctx.fillStyle = '#999';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    const step = Math.max(1, Math.floor(dados.length / 12));
+    for (let i = 0; i < dados.length; i++) {
+        if (i % step === 0 || i === dados.length - 1) {
+            const x = MARGIN.left + (i / (dados.length - 1 || 1)) * chartW;
+            ctx.fillText(`M${dados[i].mes}`, x, H - MARGIN.bottom + 16);
+        }
+    }
+
+    // Eixo Y esquerdo - % Obra
+    ctx.fillStyle = '#667eea';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+        const val = (i / 4) * 100;
+        const y = MARGIN.top + chartH - (i / 4) * chartH;
+        ctx.fillText(`${val}%`, MARGIN.left - 6, y + 3);
+    }
+    ctx.save();
+    ctx.fillStyle = '#667eea';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.translate(14, MARGIN.top + chartH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('% Obra', 0, 0);
+    ctx.restore();
+
+    // Eixo Y direito - Encargo R$
+    ctx.fillStyle = '#e74c3c';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'left';
+    for (let i = 0; i <= 4; i++) {
+        const val = (i / 4) * maxEncargoAprox;
+        const y = MARGIN.top + chartH - (i / 4) * chartH;
+        ctx.fillText(`R$ ${formatMoney(val)}`, MARGIN.left + chartW + 4, y + 3);
+    }
+
+    // Coordenadas
+    function ponto(mes, valorPct, valorEncargo) {
+        const x = MARGIN.left + ((mes - 1) / (dados.length - 1 || 1)) * chartW;
+        return {
+            x,
+            yPct: MARGIN.top + chartH - (valorPct / 100) * chartH,
+            yEnc: MARGIN.top + chartH - (valorEncargo / maxEncargoAprox) * chartH
+        };
+    }
+
+    const pts = dados.map((d, i) => ponto(d.mes, d.pctAcumulado, d.encargoTotal));
+
+    // Área azul (fill abaixo da curva % obra)
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, MARGIN.top + chartH);
+    pts.forEach(p => ctx.lineTo(p.x, p.yPct));
+    ctx.lineTo(pts[pts.length - 1].x, MARGIN.top + chartH);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(102, 126, 234, 0.10)';
+    ctx.fill();
+
+    // Linha azul - % Obra
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.yPct) : ctx.lineTo(p.x, p.yPct));
+    ctx.strokeStyle = '#667eea';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    pts.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.yPct, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#667eea';
+        ctx.fill();
+    });
+
+    // Linha vermelha - Encargo Total
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.yEnc) : ctx.lineTo(p.x, p.yEnc));
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    pts.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.yEnc, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fill();
+    });
+
+    // Linha vertical tracejada no último mês
+    const ultimo = pts[pts.length - 1];
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(ultimo.x, MARGIN.top);
+    ctx.lineTo(ultimo.x, MARGIN.top + chartH);
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label valor final do encargo
+    ctx.fillStyle = '#e74c3c';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`R$ ${formatMoney(dados[dados.length - 1].encargoTotal)}`, ultimo.x, ultimo.yEnc - 10);
+
+    // Label valor final % obra
+    ctx.fillStyle = '#667eea';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${dados[dados.length - 1].pctAcumulado.toFixed(1)}%`, ultimo.x, ultimo.yPct - 10);
 }
 
 /**
@@ -242,7 +414,6 @@ function handleCenarioClick(event) {
     const botao = event.currentTarget;
     const cenario = parseInt(botao.dataset.cenario);
 
-    // Validar inputs
     const valores = obterValores();
     if (!valores) return;
 
@@ -250,23 +421,27 @@ function handleCenarioClick(event) {
     botoesCenario.forEach(btn => btn.classList.remove('active'));
     botao.classList.add('active');
 
-    // Calcular e renderizar
-    const calculadora = calculadoras[cenario];
-    const resultado = calculadora(valores.valorParcela, valores.valorMuroPortao, valores.mesesObra);
-    renderizarResultados(resultado);
+    // Calcular
+    const resultado = calcularJurosObra(
+        valores.valorConstrucao,
+        valores.taxaJurosMensal,
+        valores.seguroMensal,
+        valores.taxaAdm,
+        valores.mesesObra,
+        cenario
+    );
+
+    renderizarResultados(resultado, valores.valorMuroPortao, valores.mesesObra);
 }
 
 // ===== SISTEMA DE ABAS =====
-
 const botoesTab = document.querySelectorAll('.tab-btn');
 const conteudosTab = document.querySelectorAll('.tab-content');
 
 function alternarAba(tabId) {
-    // Atualizar botões
     botoesTab.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
-    // Atualizar conteúdos
     conteudosTab.forEach(content => {
         content.classList.toggle('active', content.id === `tab-${tabId}`);
     });
@@ -279,37 +454,39 @@ botoesTab.forEach(btn => {
 });
 
 // ===== EVENT LISTENERS =====
-
-// Adicionar listeners aos botões de cenário
-
 botoesCenario.forEach(botao => {
     botao.addEventListener('click', handleCenarioClick);
 });
 
-// Habilitar Enter nos inputs para disparar o primeiro cenário selecionado
 function handleEnterKey(event) {
     if (event.key === 'Enter') {
         const botaoAtivo = document.querySelector('.btn-cenario.active');
         if (botaoAtivo) {
             botaoAtivo.click();
         } else {
-            // Se nenhum cenário ativo, clica no primeiro
             botoesCenario[0].click();
         }
     }
 }
 
-[valorParcelaInput, mesesObraInput, valorMuroPortaoInput].forEach(input => {
+const inputsForm = [
+    valorConstrucaoInput, taxaJurosMensalInput, seguroMensalInput,
+    taxaAdmInput, mesesObraInput, valorMuroPortaoInput
+];
+
+inputsForm.forEach(input => {
     input.addEventListener('keydown', handleEnterKey);
 });
 
-// ===== CALCULADORA PESSOAL =====
+// ===== INICIALIZAÇÃO =====
+document.addEventListener('DOMContentLoaded', () => {
+    preencherTabelaCurvaBase();
+});
 
-/** Lista de gastos */
+// ===== CALCULADORA PESSOAL =====
 let gastos = [];
 let gastoIdCounter = 0;
 
-/** Elementos DOM da calculadora pessoal */
 const rendaMensalInput = document.getElementById('rendaMensal');
 const btnAddGasto = document.getElementById('btn-add-gasto');
 const gastosListEl = document.getElementById('gastos-list');
@@ -317,9 +494,6 @@ const totalGastosEl = document.getElementById('totalGastos');
 const saldoRestanteEl = document.getElementById('saldoRestante');
 const saldoCard = document.getElementById('saldo-card');
 
-/**
- * Atualiza o resumo (total de gastos e saldo restante)
- */
 function atualizarResumoPessoal() {
     const renda = parseFloat(rendaMensalInput.value) || 0;
     const totalGastos = gastos.reduce((acc, g) => acc + g.valor, 0);
@@ -336,9 +510,6 @@ function atualizarResumoPessoal() {
     }
 }
 
-/**
- * Renderiza a lista de gastos no DOM
- */
 function renderizarGastos() {
     if (gastos.length === 0) {
         gastosListEl.innerHTML = `<p class="hint" style="margin-bottom:0;">Nenhum gasto adicionado. Clique em "+ Adicionar gasto" acima.</p>`;
@@ -354,7 +525,6 @@ function renderizarGastos() {
         </div>
     `).join('');
 
-    // Adicionar eventos aos inputs de cada gasto
     const items = gastosListEl.querySelectorAll('.gasto-item');
     items.forEach(item => {
         const id = parseInt(item.dataset.id);
@@ -362,13 +532,11 @@ function renderizarGastos() {
         const valorInput = item.querySelector('.gasto-valor');
         const btnRemove = item.querySelector('.btn-remove-gasto');
 
-        // Atualizar descrição ao digitar
         descInput.addEventListener('input', () => {
             const gasto = gastos.find(g => g.id === id);
             if (gasto) gasto.descricao = descInput.value;
         });
 
-        // Atualizar valor ao digitar
         valorInput.addEventListener('input', () => {
             const gasto = gastos.find(g => g.id === id);
             if (gasto) {
@@ -377,7 +545,6 @@ function renderizarGastos() {
             }
         });
 
-        // Remover gasto
         btnRemove.addEventListener('click', () => {
             gastos = gastos.filter(g => g.id !== id);
             renderizarGastos();
@@ -386,9 +553,6 @@ function renderizarGastos() {
     });
 }
 
-/**
- * Adiciona um novo gasto vazio na lista
- */
 function adicionarGasto() {
     gastoIdCounter++;
     gastos.push({
@@ -399,7 +563,6 @@ function adicionarGasto() {
     renderizarGastos();
     atualizarResumoPessoal();
 
-    // Focar no campo de descrição do último gasto adicionado
     const items = gastosListEl.querySelectorAll('.gasto-item');
     const ultimo = items[items.length - 1];
     if (ultimo) {
@@ -408,15 +571,8 @@ function adicionarGasto() {
     }
 }
 
-// ===== EVENT LISTENERS =====
-
-// Botão "Adicionar gasto"
 btnAddGasto.addEventListener('click', adicionarGasto);
-
-// Atualizar resumo quando a renda mudar
 rendaMensalInput.addEventListener('input', atualizarResumoPessoal);
-
-// Adicionar gasto ao pressionar Enter no campo de renda
 rendaMensalInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
         event.preventDefault();

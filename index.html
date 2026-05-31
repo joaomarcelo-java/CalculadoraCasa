@@ -25,44 +25,84 @@
             <!-- Formulário de Entrada -->
             <section class="card" id="form-section">
 
-                <h2>📋 Dados do Financiamento</h2>
+                <h2>📋 Dados do seu contrato</h2>
+                <p class="hint">Preencha os dados do seu contrato de financiamento habitacional.</p>
                 <div class="form-group">
-                    <label for="valorParcela">Valor da parcela do financiamento (R$)</label>
-                    <input type="number" id="valorParcela" step="0.01" min="0" placeholder="Ex: 1500.00" required>
+                    <label for="valorConstrucao">Valor liberado para construção (R$)</label>
+                    <input type="number" id="valorConstrucao" step="0.01" min="0" placeholder="190141.27" required>
                 </div>
                 <div class="form-group">
+                    <label for="taxaJurosMensal">Taxa de juros nominal mensal (%)</label>
+                    <input type="number" id="taxaJurosMensal" step="0.0001" min="0" placeholder="0.6383" required>
+                </div>
+                <div class="form-group">
+                    <label for="seguroMensal">Seguro mensal (MIP + DFI) (R$)</label>
+                    <input type="number" id="seguroMensal" step="0.01" min="0" placeholder="35.38" required>
+                </div>
+                <div class="form-group">
+                    <label for="taxaAdm">Taxa de administração mensal (R$)</label>
+                    <input type="number" id="taxaAdm" step="0.01" min="0" placeholder="25.00" required>
+                </div>
+
+                <h2 style="margin-top: 28px;">📅 Dados da obra</h2>
+                <div class="form-group">
                     <label for="mesesObra">Meses até a obra ficar pronta</label>
-                    <input type="number" id="mesesObra" min="1" max="120" placeholder="Ex: 36" required>
+                    <input type="number" id="mesesObra" min="1" max="120" placeholder="Ex: 24" required>
                 </div>
                 <div class="form-group">
                     <label for="valorMuroPortao">Valor gasto com muro e portão (R$)</label>
-                    <input type="number" id="valorMuroPortao" step="0.01" min="0" placeholder="Ex: 5000.00" required>
+                    <input type="number" id="valorMuroPortao" step="0.01" min="0" placeholder="0.00" required>
                 </div>
+            </section>
+
+            <!-- Referência da Curva Base (PDF) -->
+            <section class="card" id="curva-info">
+                <h2>📄 Referência: Curva S do PDF (24 meses)</h2>
+                <p class="hint">Os cálculos são baseados na Curva S real extraída do cronograma de obra (PDF), que segue o padrão de evolução do Minha Casa Minha Vida.</p>
+                <details>
+                    <summary>📊 Ver tabela da Curva Base (PDF)</summary>
+                    <div class="table-container" style="margin-top: 12px;">
+                        <table class="curva-table">
+                            <thead>
+                                <tr>
+                                    <th>Mês</th>
+                                    <th>% Período</th>
+                                    <th>% Acumulado</th>
+                                    <th>Barra Visual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="curva-base-body">
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
             </section>
 
             <!-- Seleção de Cenário -->
             <section class="card" id="cenario-section">
                 <h2>🎯 Escolha o Cenário</h2>
-                <p class="hint">Clique em um cenário para ver os resultados:</p>
+                <p class="hint">Clique em um cenário para ver os resultados baseados na Curva S do PDF:</p>
                 <div class="cenario-buttons">
-                    <button class="btn-cenario" data-cenario="1" style="--btn-color: #e74c3c;">
+                    <button class="btn-cenario" data-cenario="1" style="--btn-color: #2ecc71;">
+                        <span class="btn-icon">📊</span>
+                        <span class="btn-text">Previsto<br>(Curva PDF)</span>
+                    </button>
+                    <button class="btn-cenario" data-cenario="2" style="--btn-color: #e74c3c;">
                         <span class="btn-icon">🔴</span>
                         <span class="btn-text">Atraso no<br>Começo</span>
                     </button>
-                    <button class="btn-cenario" data-cenario="2" style="--btn-color: #f39c12;">
+                    <button class="btn-cenario" data-cenario="3" style="--btn-color: #f39c12;">
                         <span class="btn-icon">🟡</span>
                         <span class="btn-text">Atraso no<br>Meio</span>
                     </button>
-                    <button class="btn-cenario" data-cenario="3" style="--btn-color: #e67e22;">
+                    <button class="btn-cenario" data-cenario="4" style="--btn-color: #e67e22;">
                         <span class="btn-icon">🟠</span>
                         <span class="btn-text">Atraso no<br>Final</span>
                     </button>
-                    <button class="btn-cenario" data-cenario="4" style="--btn-color: #2ecc71;">
-                        <span class="btn-icon">🟢</span>
-                        <span class="btn-text">Sem<br>Atrasos</span>
-                    </button>
                 </div>
             </section>
+
 
             <!-- Resultados -->
             <section class="card" id="result-section" style="display: none;">
@@ -74,8 +114,12 @@
                         <thead>
                             <tr>
                                 <th>Mês</th>
-                                <th>Taxa (%)</th>
-                                <th>Valor Pago (R$)</th>
+                                <th>% Obra</th>
+                                <th>Valor Liberado</th>
+                                <th>Juros</th>
+                                <th>Seguro</th>
+                                <th>Taxa Adm</th>
+                                <th><strong>Encargo Total</strong></th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
@@ -83,19 +127,31 @@
                     </table>
                 </div>
 
+                <!-- Gráfico -->
+                <div class="chart-container">
+                    <h3 style="font-size:1rem; margin-bottom:14px; color:#555;">📈 Evolução Mês a Mês</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="chart-canvas" width="700" height="320"></canvas>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item"><span class="legend-color" style="background:#667eea;"></span> % Obra Acumulado</span>
+                        <span class="legend-item"><span class="legend-color" style="background:#e74c3c;"></span> Encargo Total (R$)</span>
+                    </div>
+                </div>
+
                 <!-- Resumo -->
                 <div class="resumo-grid">
                     <div class="resumo-card total">
-                        <span class="resumo-label">Total Gasto</span>
+                        <span class="resumo-label">Total Gasto na Fase de Obra</span>
                         <span class="resumo-value" id="totalGasto">R$ 0,00</span>
+                    </div>
+                    <div class="resumo-card juros">
+                        <span class="resumo-label">Total Só em Juros de Obra</span>
+                        <span class="resumo-value" id="totalJuros">R$ 0,00</span>
                     </div>
                     <div class="resumo-card muro">
                         <span class="resumo-label">Muro + Portão</span>
                         <span class="resumo-value" id="valorMuro">R$ 0,00</span>
-                    </div>
-                    <div class="resumo-card taxa">
-                        <span class="resumo-label">Taxa de Obra</span>
-                        <span class="resumo-value" id="taxaObra">R$ 0,00</span>
                     </div>
                     <div class="resumo-card guardar">
                         <span class="resumo-label">Guardar p/ cada um/mês</span>
